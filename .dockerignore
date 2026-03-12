@@ -1,0 +1,16 @@
+.git
+.gitignore
+.pnpm-store
+**/.pnpm-store
+.vscode
+.idea
+node_modules
+**/node_modules
+dist
+**/dist
+coverage
+**/coverage
+*.log
+.DS_Store
+tmp
+src/proto/gen
