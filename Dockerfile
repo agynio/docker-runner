@@ -2,6 +2,8 @@
 
 FROM node:20-slim AS base
 
+ARG TARGETARCH
+
 ENV PNPM_HOME=/pnpm \
     PNPM_STORE_PATH=/pnpm-store \
     PATH=/pnpm:$PATH
@@ -13,7 +15,8 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates curl git openssl \
  && rm -rf /var/lib/apt/lists/*
 
-RUN curl -sSL "https://github.com/bufbuild/buf/releases/download/v1.45.0/buf-Linux-x86_64" -o /usr/local/bin/buf \
+RUN ARCH=$([ "$TARGETARCH" = "arm64" ] && echo "aarch64" || echo "x86_64") \
+ && curl -sSL "https://github.com/bufbuild/buf/releases/download/v1.45.0/buf-Linux-${ARCH}" -o /usr/local/bin/buf \
  && chmod +x /usr/local/bin/buf
 
 WORKDIR /app
