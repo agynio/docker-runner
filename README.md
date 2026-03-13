@@ -21,7 +21,6 @@ No local Node.js or pnpm required; the dev container in the cluster runs the too
 ```sh
 gh repo clone agynio/bootstrap_v2
 cd bootstrap_v2
-cp stacks/platform/terraform.tfvars.example stacks/platform/terraform.tfvars
 ./apply.sh -y
 kubectl get deployment docker-runner -n platform
 ```
