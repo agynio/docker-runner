@@ -3,6 +3,26 @@ version: v2beta1
 vars:
   DOCKER_RUNNER_NAMESPACE: platform
 
+commands:
+  test: |-
+    exec_container \
+      --label-selector "app.kubernetes.io/name=docker-runner,app.kubernetes.io/instance=docker-runner" \
+      --container docker-runner \
+      -n ${DOCKER_RUNNER_NAMESPACE} \
+      -- pnpm test
+  test:e2e: |-
+    exec_container \
+      --label-selector "app.kubernetes.io/name=docker-runner,app.kubernetes.io/instance=docker-runner" \
+      --container docker-runner \
+      -n ${DOCKER_RUNNER_NAMESPACE} \
+      -- pnpm test:e2e
+  enter: |-
+    exec_container \
+      --label-selector "app.kubernetes.io/name=docker-runner,app.kubernetes.io/instance=docker-runner" \
+      --container docker-runner \
+      -n ${DOCKER_RUNNER_NAMESPACE} \
+      -- sh
+
 pipelines:
   dev: |-
     if kubectl get application docker-runner -n argocd >/dev/null 2>&1; then

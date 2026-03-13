@@ -39,15 +39,19 @@ It also forwards gRPC on port `50051` to your local machine.
 
 ## Running Tests
 
+Keep `devspace dev` running in another terminal, then use:
+
 ```sh
-devspace enter
-pnpm test
-DOCKER_RUNNER_SHARED_SECRET=change-me pnpm test:e2e
+devspace run test
+devspace run test:e2e
+devspace run enter
 ```
 
-`pnpm test` runs unit + integration tests; the integration suite requires
-Docker, provided by the DinD sidecar in the dev pod. The e2e suite requires the
-shared secret env var shown above.
+`devspace run test` runs unit + integration tests; the integration suite
+requires Docker, provided by the DinD sidecar in the dev pod. `devspace run
+test:e2e` runs the e2e suite, with `DOCKER_RUNNER_SHARED_SECRET` already
+provided by the Helm deployment. `devspace run enter` opens an interactive shell
+in the dev container.
 
 ## Troubleshooting
 
