@@ -45,7 +45,7 @@ describe('docker-runner e2e', () => {
   });
 
   it('ready health check', async () => {
-    const response = await ready();
+    const response = await grpcTestClient.ready();
     expect(response).toBeDefined();
   });
 
