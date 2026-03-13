@@ -89,12 +89,12 @@ import {
 } from '../../proto/grpc.js';
 import { timestampFromDate } from '@bufbuild/protobuf/wkt';
 import { create } from '@bufbuild/protobuf';
-import type { ContainerService, InteractiveExecSession, LogsStreamSession, NonceCache } from '../..';
-import type { ContainerHandle } from '../../lib/container.handle';
-import { verifyAuthHeaders } from '../..';
-import type { RunnerConfig } from '../config';
-import { createDockerEventsParser } from '../dockerEvents.parser';
-import { startWorkloadRequestToContainerOpts } from '../../contracts/workload.grpc';
+import type { ContainerService, InteractiveExecSession, LogsStreamSession, NonceCache } from '../../index.ts';
+import type { ContainerHandle } from '../../lib/container.handle.ts';
+import { verifyAuthHeaders } from '../../index.ts';
+import type { RunnerConfig } from '../config.ts';
+import { createDockerEventsParser } from '../dockerEvents.parser.ts';
+import { startWorkloadRequestToContainerOpts } from '../../contracts/workload.grpc.ts';
 
 type ExecStream = ServerDuplexStream<ExecRequest, ExecResponse>;
 

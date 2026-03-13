@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { canonicalJsonStringify } from './json';
+import { canonicalJsonStringify } from './json.ts';
 
 export type SignatureHeaders = {
   timestamp: string;

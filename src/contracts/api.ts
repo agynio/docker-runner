@@ -1,4 +1,4 @@
-import type { ContainerInspectInfo, ContainerOpts, ExecOptions, ExecResult, Platform } from '../lib/types';
+import type { ContainerInspectInfo, ContainerOpts, ExecOptions, ExecResult, Platform } from '../lib/types.ts';
 
 export type ErrorPayload = {
   error: {

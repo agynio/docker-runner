@@ -1,5 +1,5 @@
-import type { DockerClientPort } from './dockerClient.port';
-import type { ExecOptions } from './types';
+import type { DockerClientPort } from './dockerClient.port.ts';
+import type { ExecOptions } from './types.ts';
 
 /**
  * Lightweight entity wrapper representing a running (or created) container.
