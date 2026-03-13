@@ -1,0 +1,101 @@
+version: v2beta1
+
+vars:
+  DOCKER_RUNNER_NAMESPACE: platform
+
+pipelines:
+  dev: |-
+    if kubectl get application docker-runner -n argocd >/dev/null 2>&1; then
+      echo "Disabling ArgoCD auto-sync for docker-runner..."
+      kubectl patch application docker-runner -n argocd \
+        --type merge \
+        -p '{"spec":{"syncPolicy":{"automated":null}}}'
+      echo "ArgoCD auto-sync disabled."
+    else
+      echo "WARNING: ArgoCD Application 'docker-runner' not found in argocd namespace."
+    fi
+    echo "Patching docker-runner deployment for DevSpace..."
+    kubectl patch deployment docker-runner -n ${DOCKER_RUNNER_NAMESPACE} --type json --patch "$(cat <<'EOF'
+    [
+      {
+        "op": "add",
+        "path": "/spec/template/spec/containers/0/image",
+        "value": "ghcr.io/agynio/devcontainer-node:1"
+      },
+      {
+        "op": "add",
+        "path": "/spec/template/spec/containers/0/workingDir",
+        "value": "/opt/app/data"
+      },
+      {
+        "op": "add",
+        "path": "/spec/template/spec/containers/0/command",
+        "value": [
+          "sh",
+          "-c",
+          "set -eu\nelapsed=0\nwhile [ ! -f /opt/app/data/package.json ]; do\n  sleep 1; elapsed=$((elapsed + 1))\n  [ \"$elapsed\" -ge 120 ] && { echo \"ERROR: sync timeout\" >&2; exit 1; }\ndone\npnpm install --frozen-lockfile\npnpm proto:generate\nexec tsx watch src/service/main.ts\n"
+        ]
+      },
+      {
+        "op": "add",
+        "path": "/spec/template/spec/containers/0/args",
+        "value": []
+      },
+      {
+        "op": "add",
+        "path": "/spec/template/spec/containers/0/resources",
+        "value": {
+          "requests": {
+            "cpu": "500m",
+            "memory": "1Gi"
+          },
+          "limits": {
+            "cpu": "2",
+            "memory": "4Gi"
+          }
+        }
+      },
+      {
+        "op": "add",
+        "path": "/spec/template/spec/containers/0/securityContext/readOnlyRootFilesystem",
+        "value": false
+      }
+    ]
+    EOF
+    )"
+    start_dev --disable-pod-replace docker-runner
+
+hooks:
+  - name: restore-argocd-auto-sync
+    events:
+      - after:dev:docker-runner
+    command: sh
+    args:
+      - -c
+      - |
+        if kubectl get application docker-runner -n argocd >/dev/null 2>&1; then
+          echo "Re-enabling ArgoCD auto-sync for docker-runner..."
+          kubectl patch application docker-runner -n argocd \
+            --type merge \
+            -p '{"spec":{"syncPolicy":{"automated":{"prune":true,"selfHeal":true}}}}'
+          echo "ArgoCD auto-sync restored."
+        fi
+
+dev:
+  docker-runner:
+    namespace: ${DOCKER_RUNNER_NAMESPACE}
+    labelSelector:
+      app.kubernetes.io/name: docker-runner
+      app.kubernetes.io/instance: docker-runner
+    containers:
+      docker-runner:
+        container: docker-runner
+        sync:
+          - path: ./:/opt/app/data
+            excludePaths:
+              - .git/
+              - node_modules/
+              - dist/
+              - .devspace/
+    ports:
+      - port: "50051"

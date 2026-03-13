@@ -10,6 +10,7 @@
     "start": "node dist/service/main.js",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:e2e": "vitest run --config vitest.config.e2e.ts",
     "proto:generate": "buf generate buf.build/agynio/api"
   },
   "dependencies": {
