@@ -4,18 +4,26 @@ Standalone Docker runner service extracted from the agynio/platform monorepo.
 
 ## Prerequisites
 
-- Access to an agynio Kubernetes cluster (kubeconfig configured).
-- `kubectl`.
-- `devspace`.
-- No local Node.js or pnpm required; the dev container in the cluster runs the toolchain.
+Access to an agynio Kubernetes cluster (kubeconfig configured) and:
+
+| Tool | Version | Purpose |
+| --- | --- | --- |
+| kubectl | Compatible with cluster | Manage Kubernetes resources. |
+| devspace | Latest | Run the in-cluster DevSpace workflow. |
+| Docker Engine | Latest | Runs the k3d cluster used by bootstrap. |
+| k3d | v5.x | Local Kubernetes cluster for bootstrap. |
+| Terraform | >= 1.5.0 | Provision the bootstrap infrastructure. |
+
+No local Node.js or pnpm required; the dev container in the cluster runs the toolchain.
 
 ## Cluster Setup
 
 ```sh
 gh repo clone agynio/bootstrap_v2
 cd bootstrap_v2
-cp terraform/terraform.tfvars.example terraform/terraform.tfvars
+cp stacks/platform/terraform.tfvars.example stacks/platform/terraform.tfvars
 ./apply.sh -y
+kubectl get deployment docker-runner -n platform
 ```
 
 ## Development (DevSpace)
@@ -37,8 +45,9 @@ pnpm test
 DOCKER_RUNNER_SHARED_SECRET=change-me pnpm test:e2e
 ```
 
-`pnpm test` runs unit + integration tests. The e2e suite requires the shared
-secret env var shown above.
+`pnpm test` runs unit + integration tests; the integration suite requires
+Docker, provided by the DinD sidecar in the dev pod. The e2e suite requires the
+shared secret env var shown above.
 
 ## Troubleshooting
 
