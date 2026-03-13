@@ -1,6 +1,7 @@
 {
   "name": "@agyn/docker-runner",
   "version": "0.1.0",
+  "private": true,
   "type": "module",
   "main": "src/index.ts",
   "scripts": {
@@ -29,19 +30,5 @@
     "typescript-eslint": "^8.8.1",
     "vitest": "^3.2.4"
   },
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/agynio/docker-runner.git"
-  },
-  "files": [
-    "src/**/*.ts",
-    "dist/**",
-    "package.json",
-    "tsconfig.json",
-    "buf.gen.yaml"
-  ],
   "packageManager": "pnpm@10.5.0"
 }
