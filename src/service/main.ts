@@ -1,9 +1,9 @@
-import './env';
+import './env.ts';
 
 import { ServerCredentials } from '@grpc/grpc-js';
-import { ContainerService, NonceCache } from '..';
-import { loadRunnerConfig } from './config';
-import { createRunnerGrpcServer } from './grpc/server';
+import { ContainerService, NonceCache } from '../index.ts';
+import { loadRunnerConfig } from './config.ts';
+import { createRunnerGrpcServer } from './grpc/server.ts';
 
 async function bootstrap(): Promise<void> {
   try {

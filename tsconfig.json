@@ -9,6 +9,7 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "rewriteRelativeImportExtensions": true,
     "rootDir": "src",
     "outDir": "dist",
     "tsBuildInfoFile": "./dist/tsconfig.tsbuildinfo",

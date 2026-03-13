@@ -1,12 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import Docker, { ContainerCreateOptions, Exec, type GetEventsOptions } from 'dockerode';
 import { PassThrough, Writable } from 'node:stream';
-import { ContainerHandle } from './container.handle';
-import { mapInspectMounts } from './container.mounts';
-import { createUtf8Collector, demuxDockerMultiplex } from './containerStream.util';
-import { ExecIdleTimeoutError, ExecTimeoutError, isExecIdleTimeoutError, isExecTimeoutError } from './execTimeout';
-import type { ContainerRegistryPort } from './containerRegistry.port';
-import type { DockerClientPort } from './dockerClient.port';
+import { ContainerHandle } from './container.handle.ts';
+import { mapInspectMounts } from './container.mounts.ts';
+import { createUtf8Collector, demuxDockerMultiplex } from './containerStream.util.ts';
+import { ExecIdleTimeoutError, ExecTimeoutError, isExecIdleTimeoutError, isExecTimeoutError } from './execTimeout.ts';
+import type { ContainerRegistryPort } from './containerRegistry.port.ts';
+import type { DockerClientPort } from './dockerClient.port.ts';
 import {
   ContainerOpts,
   ExecOptions,
@@ -18,7 +18,7 @@ import {
   Platform,
   PLATFORM_LABEL,
   type ContainerInspectInfo,
-} from './types';
+} from './types.ts';
 
 const INTERACTIVE_EXEC_CLOSE_CAPTURE_LIMIT = 256 * 1024; // 256 KiB of characters (~512 KiB memory)
 

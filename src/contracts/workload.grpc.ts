@@ -12,7 +12,7 @@ import {
   VolumeSpec,
   VolumeSpecSchema,
 } from '../proto/gen/agynio/api/runner/v1/runner_pb.js';
-import type { ContainerOpts, Platform, SidecarOpts } from '../lib/types';
+import type { ContainerOpts, Platform, SidecarOpts } from '../lib/types.ts';
 
 const PROP_AUTO_REMOVE = 'auto_remove';
 const PROP_NETWORK_MODE = 'network_mode';
