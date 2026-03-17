@@ -5,7 +5,7 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     include: ['__tests__/**/*.test.ts'],
-    exclude: ['__tests__/e2e/**'],
+    exclude: ['test/e2e/**'],
     hookTimeout: 60_000,
     coverage: { enabled: false },
   },

@@ -4,7 +4,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { credentials, status } from '@grpc/grpc-js';
 
 import { RunnerServiceGrpcClient, type RunnerServiceGrpcClientInstance } from '../../src/proto/grpc.js';
-import { createGrpcTestClient, type GrpcTestClient } from '../helpers/grpc-test-client';
+import { createGrpcTestClient, type GrpcTestClient } from '../../__tests__/helpers/grpc-test-client';
 
 const grpcAddress = process.env.DOCKER_RUNNER_GRPC_URL ?? 'localhost:50051';
 const sharedSecret = process.env.DOCKER_RUNNER_SHARED_SECRET;

@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM node:20-slim AS base
+FROM --platform=$BUILDPLATFORM node:20-slim AS base
 
 ARG TARGETARCH
 
