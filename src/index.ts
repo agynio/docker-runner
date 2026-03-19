@@ -6,8 +6,6 @@ export * from './lib/containerRegistry.port.ts';
 export * from './lib/dockerClient.port.ts';
 export * from './lib/execTimeout.ts';
 export * from './lib/types.ts';
-export * from './contracts/auth.ts';
-export * from './contracts/json.ts';
 export * from './contracts/api.ts';
 export * from './contracts/workload.grpc.ts';
 export { createRunnerGrpcServer } from './service/grpc/server.ts';

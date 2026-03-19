@@ -1,16 +1,8 @@
 import { Metadata, type ServiceError } from '@grpc/grpc-js';
 import { create } from '@bufbuild/protobuf';
 
-import { buildAuthHeaders } from '../../src/contracts/auth';
 import { containerOptsToStartWorkloadRequest } from '../../src/contracts/workload.grpc';
-import {
-  RUNNER_SERVICE_INSPECT_WORKLOAD_PATH,
-  RUNNER_SERVICE_READY_PATH,
-  RUNNER_SERVICE_REMOVE_WORKLOAD_PATH,
-  RUNNER_SERVICE_START_WORKLOAD_PATH,
-  RUNNER_SERVICE_STOP_WORKLOAD_PATH,
-  type RunnerServiceGrpcClientInstance,
-} from '../../src/proto/grpc.js';
+import { type RunnerServiceGrpcClientInstance } from '../../src/proto/grpc.js';
 import {
   InspectWorkloadRequestSchema,
   ReadyRequestSchema,
@@ -29,9 +21,8 @@ export type StartWorkloadInput = {
 };
 
 export type GrpcTestClient = {
-  metadataFor: (path: string) => Metadata;
+  metadataFor: () => Metadata;
   unary: <Request, Response>(
-    path: string,
     request: Request,
     invoke: (
       req: Request,
@@ -51,21 +42,14 @@ export type GrpcTestClient = {
 
 export function createGrpcTestClient(options: {
   client: RunnerServiceGrpcClientInstance;
-  secret: string;
 }): GrpcTestClient {
-  const { client, secret } = options;
+  const { client } = options;
 
-  const metadataFor = (path: string): Metadata => {
-    const headers = buildAuthHeaders({ method: 'POST', path, body: '', secret });
-    const metadata = new Metadata();
-    for (const [key, value] of Object.entries(headers)) {
-      metadata.set(key, value);
-    }
-    return metadata;
+  const metadataFor = (): Metadata => {
+    return new Metadata();
   };
 
   const unary = async <Request, Response>(
-    path: string,
     request: Request,
     invoke: (
       req: Request,
@@ -73,7 +57,7 @@ export function createGrpcTestClient(options: {
       callback: (err: ServiceError | null, response?: Response) => void,
     ) => void,
   ): Promise<Response> => {
-    const metadata = metadataFor(path);
+    const metadata = metadataFor();
     return new Promise<Response>((resolve, reject) => {
       invoke(request, metadata, (err, response) => {
         if (err) {
@@ -92,14 +76,14 @@ export function createGrpcTestClient(options: {
       name: opts.name,
       autoRemove: opts.autoRemove,
     });
-    return unary(RUNNER_SERVICE_START_WORKLOAD_PATH, request, (req, metadata, callback) => {
+    return unary(request, (req, metadata, callback) => {
       client.startWorkload(req, metadata, callback);
     });
   };
 
   const stopContainer = async (containerId: string, timeoutSec = 1): Promise<void> => {
     const request = create(StopWorkloadRequestSchema, { workloadId: containerId, timeoutSec });
-    await unary(RUNNER_SERVICE_STOP_WORKLOAD_PATH, request, (req, metadata, callback) => {
+    await unary(request, (req, metadata, callback) => {
       client.stopWorkload(req, metadata, callback);
     });
   };
@@ -113,21 +97,21 @@ export function createGrpcTestClient(options: {
       force: options.force ?? false,
       removeVolumes: options.removeVolumes ?? false,
     });
-    await unary(RUNNER_SERVICE_REMOVE_WORKLOAD_PATH, request, (req, metadata, callback) => {
+    await unary(request, (req, metadata, callback) => {
       client.removeWorkload(req, metadata, callback);
     });
   };
 
   const inspectContainer = async (containerId: string): Promise<InspectWorkloadResponse> => {
     const request = create(InspectWorkloadRequestSchema, { workloadId: containerId });
-    return unary(RUNNER_SERVICE_INSPECT_WORKLOAD_PATH, request, (req, metadata, callback) => {
+    return unary(request, (req, metadata, callback) => {
       client.inspectWorkload(req, metadata, callback);
     });
   };
 
   const ready = async (): Promise<ReadyResponse> => {
     const request = create(ReadyRequestSchema, {});
-    return unary(RUNNER_SERVICE_READY_PATH, request, (req, metadata, callback) => {
+    return unary(request, (req, metadata, callback) => {
       client.ready(req, metadata, callback);
     });
   };
