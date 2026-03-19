@@ -69,29 +69,11 @@ import {
   WorkloadContainersSchema,
   WorkloadStatus,
 } from '../../proto/gen/agynio/api/runner/v1/runner_pb.js';
-import {
-  RUNNER_SERVICE_CANCEL_EXEC_PATH,
-  RUNNER_SERVICE_EXEC_PATH,
-  RUNNER_SERVICE_FIND_WORKLOADS_BY_LABELS_PATH,
-  RUNNER_SERVICE_GET_WORKLOAD_LABELS_PATH,
-  RUNNER_SERVICE_INSPECT_WORKLOAD_PATH,
-  RUNNER_SERVICE_LIST_WORKLOADS_BY_VOLUME_PATH,
-  RUNNER_SERVICE_PUT_ARCHIVE_PATH,
-  RUNNER_SERVICE_READY_PATH,
-  RUNNER_SERVICE_REMOVE_VOLUME_PATH,
-  RUNNER_SERVICE_REMOVE_WORKLOAD_PATH,
-  RUNNER_SERVICE_START_WORKLOAD_PATH,
-  RUNNER_SERVICE_STOP_WORKLOAD_PATH,
-  RUNNER_SERVICE_STREAM_EVENTS_PATH,
-  RUNNER_SERVICE_STREAM_WORKLOAD_LOGS_PATH,
-  RUNNER_SERVICE_TOUCH_WORKLOAD_PATH,
-  runnerServiceGrpcDefinition,
-} from '../../proto/grpc.js';
+import { runnerServiceGrpcDefinition } from '../../proto/grpc.js';
 import { timestampFromDate } from '@bufbuild/protobuf/wkt';
 import { create } from '@bufbuild/protobuf';
-import type { ContainerService, InteractiveExecSession, LogsStreamSession, NonceCache } from '../../index.ts';
+import type { ContainerService, InteractiveExecSession, LogsStreamSession } from '../../index.ts';
 import type { ContainerHandle } from '../../lib/container.handle.ts';
-import { verifyAuthHeaders } from '../../index.ts';
 import type { RunnerConfig } from '../config.ts';
 import { createDockerEventsParser } from '../dockerEvents.parser.ts';
 import { startWorkloadRequestToContainerOpts } from '../../contracts/workload.grpc.ts';
@@ -101,7 +83,6 @@ type ExecStream = ServerDuplexStream<ExecRequest, ExecResponse>;
 export type RunnerGrpcOptions = {
   config: RunnerConfig;
   containers: ContainerService;
-  nonceCache: NonceCache;
 };
 
 type ExecutionContext = {
@@ -330,15 +311,6 @@ function coerceDuration(value?: bigint): number | undefined {
   return num;
 }
 
-function metadataToHeaders(metadata: Metadata): Record<string, string> {
-  const raw = metadata.getMap();
-  const headers: Record<string, string> = {};
-  for (const [key, value] of Object.entries(raw)) {
-    headers[key] = typeof value === 'string' ? value : value.toString('utf8');
-  }
-  return headers;
-}
-
 function createRunnerError(code: string, message: string, retryable: boolean) {
   return create(ExecErrorSchema, { code, message, retryable });
 }
@@ -359,27 +331,6 @@ function writeResponse(call: ExecStream, response: ExecResponse): void {
   }
 }
 
-function verifyGrpcAuth({
-  metadata,
-  secret,
-  nonceCache,
-  path,
-}: {
-  metadata: Metadata;
-  secret: string;
-  nonceCache: NonceCache;
-  path: string;
-}) {
-  return verifyAuthHeaders({
-    headers: metadataToHeaders(metadata),
-    method: 'POST',
-    path,
-    body: '',
-    secret,
-    nonceCache,
-  });
-}
-
 function utf8Tail(data: string, maxBytes: number): Uint8Array {
   if (maxBytes <= 0) return new Uint8Array();
   const encoded = utf8Encoder.encode(data);
@@ -398,15 +349,6 @@ export function createRunnerGrpcServer(opts: RunnerGrpcOptions): Server {
       call: ServerUnaryCall<ReadyRequest, ReadyResponse>,
       callback: (error: ServiceError | null, value?: ReadyResponse) => void,
     ) => {
-      const verification = verifyGrpcAuth({
-        metadata: call.metadata,
-        secret: opts.config.sharedSecret,
-        nonceCache: opts.nonceCache,
-        path: RUNNER_SERVICE_READY_PATH,
-      });
-      if (!verification.ok) {
-        return callback(toServiceError(status.UNAUTHENTICATED, verification.message ?? 'unauthorized'));
-      }
       try {
         await opts.containers.getDocker().ping();
       } catch (error) {
@@ -420,15 +362,6 @@ export function createRunnerGrpcServer(opts: RunnerGrpcOptions): Server {
       call: ServerUnaryCall<StartWorkloadRequest, StartWorkloadResponse>,
       callback: (error: ServiceError | null, value?: StartWorkloadResponse) => void,
     ) => {
-      const verification = verifyGrpcAuth({
-        metadata: call.metadata,
-        secret: opts.config.sharedSecret,
-        nonceCache: opts.nonceCache,
-        path: RUNNER_SERVICE_START_WORKLOAD_PATH,
-      });
-      if (!verification.ok) {
-        return callback(toServiceError(status.UNAUTHENTICATED, verification.message ?? 'unauthorized'));
-      }
       if (!call.request?.main) {
         return callback(toServiceError(status.INVALID_ARGUMENT, 'main_container_required'));
       }
@@ -535,15 +468,6 @@ export function createRunnerGrpcServer(opts: RunnerGrpcOptions): Server {
       call: ServerUnaryCall<StopWorkloadRequest, StopWorkloadResponse>,
       callback: (error: ServiceError | null, value?: StopWorkloadResponse) => void,
     ) => {
-      const verification = verifyGrpcAuth({
-        metadata: call.metadata,
-        secret: opts.config.sharedSecret,
-        nonceCache: opts.nonceCache,
-        path: RUNNER_SERVICE_STOP_WORKLOAD_PATH,
-      });
-      if (!verification.ok) {
-        return callback(toServiceError(status.UNAUTHENTICATED, verification.message ?? 'unauthorized'));
-      }
       const workloadId = call.request.workloadId?.trim();
       if (!workloadId) {
         return callback(toServiceError(status.INVALID_ARGUMENT, 'workload_id_required'));
@@ -564,15 +488,6 @@ export function createRunnerGrpcServer(opts: RunnerGrpcOptions): Server {
       call: ServerUnaryCall<RemoveWorkloadRequest, RemoveWorkloadResponse>,
       callback: (error: ServiceError | null, value?: RemoveWorkloadResponse) => void,
     ) => {
-      const verification = verifyGrpcAuth({
-        metadata: call.metadata,
-        secret: opts.config.sharedSecret,
-        nonceCache: opts.nonceCache,
-        path: RUNNER_SERVICE_REMOVE_WORKLOAD_PATH,
-      });
-      if (!verification.ok) {
-        return callback(toServiceError(status.UNAUTHENTICATED, verification.message ?? 'unauthorized'));
-      }
       const workloadId = call.request.workloadId?.trim();
       if (!workloadId) {
         return callback(toServiceError(status.INVALID_ARGUMENT, 'workload_id_required'));
@@ -595,15 +510,6 @@ export function createRunnerGrpcServer(opts: RunnerGrpcOptions): Server {
       call: ServerUnaryCall<InspectWorkloadRequest, InspectWorkloadResponse>,
       callback: (error: ServiceError | null, value?: InspectWorkloadResponse) => void,
     ) => {
-      const verification = verifyGrpcAuth({
-        metadata: call.metadata,
-        secret: opts.config.sharedSecret,
-        nonceCache: opts.nonceCache,
-        path: RUNNER_SERVICE_INSPECT_WORKLOAD_PATH,
-      });
-      if (!verification.ok) {
-        return callback(toServiceError(status.UNAUTHENTICATED, verification.message ?? 'unauthorized'));
-      }
       const workloadId = call.request.workloadId?.trim();
       if (!workloadId) {
         return callback(toServiceError(status.INVALID_ARGUMENT, 'workload_id_required'));
@@ -645,15 +551,6 @@ export function createRunnerGrpcServer(opts: RunnerGrpcOptions): Server {
       call: ServerUnaryCall<GetWorkloadLabelsRequest, GetWorkloadLabelsResponse>,
       callback: (error: ServiceError | null, value?: GetWorkloadLabelsResponse) => void,
     ) => {
-      const verification = verifyGrpcAuth({
-        metadata: call.metadata,
-        secret: opts.config.sharedSecret,
-        nonceCache: opts.nonceCache,
-        path: RUNNER_SERVICE_GET_WORKLOAD_LABELS_PATH,
-      });
-      if (!verification.ok) {
-        return callback(toServiceError(status.UNAUTHENTICATED, verification.message ?? 'unauthorized'));
-      }
       const workloadId = call.request.workloadId?.trim();
       if (!workloadId) {
         return callback(toServiceError(status.INVALID_ARGUMENT, 'workload_id_required'));
@@ -669,15 +566,6 @@ export function createRunnerGrpcServer(opts: RunnerGrpcOptions): Server {
       call: ServerUnaryCall<FindWorkloadsByLabelsRequest, FindWorkloadsByLabelsResponse>,
       callback: (error: ServiceError | null, value?: FindWorkloadsByLabelsResponse) => void,
     ) => {
-      const verification = verifyGrpcAuth({
-        metadata: call.metadata,
-        secret: opts.config.sharedSecret,
-        nonceCache: opts.nonceCache,
-        path: RUNNER_SERVICE_FIND_WORKLOADS_BY_LABELS_PATH,
-      });
-      if (!verification.ok) {
-        return callback(toServiceError(status.UNAUTHENTICATED, verification.message ?? 'unauthorized'));
-      }
       const labels = call.request.labels ?? {};
       if (!labels || Object.keys(labels).length === 0) {
         return callback(toServiceError(status.INVALID_ARGUMENT, 'labels_required'));
@@ -698,15 +586,6 @@ export function createRunnerGrpcServer(opts: RunnerGrpcOptions): Server {
       call: ServerUnaryCall<ListWorkloadsByVolumeRequest, ListWorkloadsByVolumeResponse>,
       callback: (error: ServiceError | null, value?: ListWorkloadsByVolumeResponse) => void,
     ) => {
-      const verification = verifyGrpcAuth({
-        metadata: call.metadata,
-        secret: opts.config.sharedSecret,
-        nonceCache: opts.nonceCache,
-        path: RUNNER_SERVICE_LIST_WORKLOADS_BY_VOLUME_PATH,
-      });
-      if (!verification.ok) {
-        return callback(toServiceError(status.UNAUTHENTICATED, verification.message ?? 'unauthorized'));
-      }
       const volumeName = call.request.volumeName?.trim();
       if (!volumeName) {
         return callback(toServiceError(status.INVALID_ARGUMENT, 'volume_name_required'));
@@ -722,15 +601,6 @@ export function createRunnerGrpcServer(opts: RunnerGrpcOptions): Server {
       call: ServerUnaryCall<RemoveVolumeRequest, RemoveVolumeResponse>,
       callback: (error: ServiceError | null, value?: RemoveVolumeResponse) => void,
     ) => {
-      const verification = verifyGrpcAuth({
-        metadata: call.metadata,
-        secret: opts.config.sharedSecret,
-        nonceCache: opts.nonceCache,
-        path: RUNNER_SERVICE_REMOVE_VOLUME_PATH,
-      });
-      if (!verification.ok) {
-        return callback(toServiceError(status.UNAUTHENTICATED, verification.message ?? 'unauthorized'));
-      }
       const volumeName = call.request.volumeName?.trim();
       if (!volumeName) {
         return callback(toServiceError(status.INVALID_ARGUMENT, 'volume_name_required'));
@@ -746,15 +616,6 @@ export function createRunnerGrpcServer(opts: RunnerGrpcOptions): Server {
       call: ServerUnaryCall<TouchWorkloadRequest, TouchWorkloadResponse>,
       callback: (error: ServiceError | null, value?: TouchWorkloadResponse) => void,
     ) => {
-      const verification = verifyGrpcAuth({
-        metadata: call.metadata,
-        secret: opts.config.sharedSecret,
-        nonceCache: opts.nonceCache,
-        path: RUNNER_SERVICE_TOUCH_WORKLOAD_PATH,
-      });
-      if (!verification.ok) {
-        return callback(toServiceError(status.UNAUTHENTICATED, verification.message ?? 'unauthorized'));
-      }
       const workloadId = call.request.workloadId?.trim();
       if (!workloadId) {
         return callback(toServiceError(status.INVALID_ARGUMENT, 'workload_id_required'));
@@ -770,15 +631,6 @@ export function createRunnerGrpcServer(opts: RunnerGrpcOptions): Server {
       call: ServerUnaryCall<PutArchiveRequest, PutArchiveResponse>,
       callback: (error: ServiceError | null, value?: PutArchiveResponse) => void,
     ) => {
-      const verification = verifyGrpcAuth({
-        metadata: call.metadata,
-        secret: opts.config.sharedSecret,
-        nonceCache: opts.nonceCache,
-        path: RUNNER_SERVICE_PUT_ARCHIVE_PATH,
-      });
-      if (!verification.ok) {
-        return callback(toServiceError(status.UNAUTHENTICATED, verification.message ?? 'unauthorized'));
-      }
       const workloadId = call.request.workloadId?.trim();
       const targetPath = call.request.path?.trim();
       if (!workloadId || !targetPath) {
@@ -796,16 +648,6 @@ export function createRunnerGrpcServer(opts: RunnerGrpcOptions): Server {
     streamWorkloadLogs: async (
       call: ServerWritableStream<StreamWorkloadLogsRequest, StreamWorkloadLogsResponse>,
     ) => {
-      const verification = verifyGrpcAuth({
-        metadata: call.metadata,
-        secret: opts.config.sharedSecret,
-        nonceCache: opts.nonceCache,
-        path: RUNNER_SERVICE_STREAM_WORKLOAD_LOGS_PATH,
-      });
-      if (!verification.ok) {
-        call.emit('error', toServiceError(status.UNAUTHENTICATED, verification.message ?? 'unauthorized'));
-        return;
-      }
       const workloadId = call.request.workloadId?.trim();
       if (!workloadId) {
         call.emit('error', toServiceError(status.INVALID_ARGUMENT, 'workload_id_required'));
@@ -917,17 +759,6 @@ export function createRunnerGrpcServer(opts: RunnerGrpcOptions): Server {
     streamEvents: async (
       call: ServerWritableStream<StreamEventsRequest, StreamEventsResponse>,
     ) => {
-      const verification = verifyGrpcAuth({
-        metadata: call.metadata,
-        secret: opts.config.sharedSecret,
-        nonceCache: opts.nonceCache,
-        path: RUNNER_SERVICE_STREAM_EVENTS_PATH,
-      });
-      if (!verification.ok) {
-        call.emit('error', toServiceError(status.UNAUTHENTICATED, verification.message ?? 'unauthorized'));
-        return;
-      }
-
       const since = bigintToNumber(call.request.since);
       const filters = buildEventFilters(call.request.filters ?? []);
 
@@ -1030,17 +861,6 @@ export function createRunnerGrpcServer(opts: RunnerGrpcOptions): Server {
       call.once('close', onClosed);
     },
     exec: (call: ExecStream) => {
-      const verification = verifyGrpcAuth({
-        metadata: call.metadata,
-        secret: opts.config.sharedSecret,
-        nonceCache: opts.nonceCache,
-        path: RUNNER_SERVICE_EXEC_PATH,
-      });
-      if (!verification.ok) {
-        call.emit('error', toServiceError(status.UNAUTHENTICATED, verification.message ?? 'unauthorized'));
-        return;
-      }
-
       let ctx: ExecutionContext | undefined;
 
       const clearTimers = clearExecutionTimers;
@@ -1343,15 +1163,6 @@ export function createRunnerGrpcServer(opts: RunnerGrpcOptions): Server {
       call: ServerUnaryCall<CancelExecutionRequest, CancelExecutionResponse>,
       callback: (error: ServiceError | null, value?: CancelExecutionResponse) => void,
     ) => {
-      const verification = verifyGrpcAuth({
-        metadata: call.metadata,
-        secret: opts.config.sharedSecret,
-        nonceCache: opts.nonceCache,
-        path: RUNNER_SERVICE_CANCEL_EXEC_PATH,
-      });
-      if (!verification.ok) {
-        return callback(toServiceError(status.UNAUTHENTICATED, verification.message ?? 'unauthorized'));
-      }
       const ctx = activeExecutions.get(call.request.executionId);
       if (!ctx) {
         return callback(null, create(CancelExecutionResponseSchema, { cancelled: false }));

@@ -7,11 +7,6 @@ import { RunnerServiceGrpcClient, type RunnerServiceGrpcClientInstance } from '.
 import { createGrpcTestClient, type GrpcTestClient } from '../../__tests__/helpers/grpc-test-client';
 
 const grpcAddress = process.env.DOCKER_RUNNER_GRPC_URL ?? 'localhost:50051';
-const sharedSecret = process.env.DOCKER_RUNNER_SHARED_SECRET;
-
-if (!sharedSecret) {
-  throw new Error('DOCKER_RUNNER_SHARED_SECRET is required for e2e tests');
-}
 
 describe('docker-runner e2e', () => {
   let client: RunnerServiceGrpcClientInstance;
@@ -20,7 +15,7 @@ describe('docker-runner e2e', () => {
 
   beforeAll(async () => {
     client = new RunnerServiceGrpcClient(grpcAddress, credentials.createInsecure());
-    grpcTestClient = createGrpcTestClient({ client, secret: sharedSecret });
+    grpcTestClient = createGrpcTestClient({ client });
     await grpcTestClient.ready();
   }, 30_000);
 

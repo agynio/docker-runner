@@ -1,7 +1,7 @@
 import './env.ts';
 
 import { ServerCredentials } from '@grpc/grpc-js';
-import { ContainerService, NonceCache } from '../index.ts';
+import { ContainerService } from '../index.ts';
 import { loadRunnerConfig } from './config.ts';
 import { createRunnerGrpcServer } from './grpc/server.ts';
 
@@ -14,8 +14,7 @@ async function bootstrap(): Promise<void> {
     }
 
     const containers = new ContainerService();
-    const nonceCache = new NonceCache({ ttlMs: config.signatureTtlMs });
-    const grpcServer = createRunnerGrpcServer({ config, containers, nonceCache });
+    const grpcServer = createRunnerGrpcServer({ config, containers });
     const grpcAddress = `${config.grpcHost}:${config.grpcPort}`;
     await new Promise<void>((resolve, reject) => {
       grpcServer.bindAsync(grpcAddress, ServerCredentials.createInsecure(), (err) => {

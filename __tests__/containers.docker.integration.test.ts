@@ -5,7 +5,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { Server, ServerCredentials, credentials } from '@grpc/grpc-js';
 
 import type { RunnerConfig } from '../src/service/config';
-import { ContainerService, NonceCache } from '../src';
+import { ContainerService } from '../src';
 import { createRunnerGrpcServer } from '../src/service/grpc/server';
 import { RunnerServiceGrpcClient } from '../src/proto/grpc.js';
 import { createGrpcTestClient, type GrpcTestClient } from './helpers/grpc-test-client';
@@ -24,8 +24,6 @@ if (shouldSkip) {
   console.warn(`Skipping docker-runner docker-backed integration tests: ${reason}`);
 }
 
-const RUNNER_SECRET = 'docker-runner-integration-secret';
-
 describeOrSkip('docker-runner docker-backed container lifecycle', () => {
   let grpcAddress: string;
   let client: InstanceType<typeof RunnerServiceGrpcClient>;
@@ -35,24 +33,21 @@ describeOrSkip('docker-runner docker-backed container lifecycle', () => {
 
   beforeAll(async () => {
     const config: RunnerConfig = {
-      sharedSecret: RUNNER_SECRET,
-      signatureTtlMs: 60_000,
       dockerSocket: hasSocket ? DEFAULT_SOCKET : '',
       logLevel: 'error',
       grpcHost: '127.0.0.1',
       grpcPort: 0,
     };
-    const nonceCache = new NonceCache({ ttlMs: config.signatureTtlMs });
     const previousSocket = process.env.DOCKER_SOCKET;
     if (config.dockerSocket) {
       process.env.DOCKER_SOCKET = config.dockerSocket;
     }
     const containers = new ContainerService();
-    const server = createRunnerGrpcServer({ config, containers, nonceCache });
+    const server = createRunnerGrpcServer({ config, containers });
     const address = await bindServer(server, config.grpcHost);
     grpcAddress = address;
     client = new RunnerServiceGrpcClient(address, credentials.createInsecure());
-    grpcTestClient = createGrpcTestClient({ client, secret: RUNNER_SECRET });
+    grpcTestClient = createGrpcTestClient({ client });
     await grpcTestClient.ready();
     shutdown = async () => {
       await new Promise<void>((resolve) => {

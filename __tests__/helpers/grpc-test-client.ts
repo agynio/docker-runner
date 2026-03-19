@@ -1,7 +1,6 @@
 import { Metadata, type ServiceError } from '@grpc/grpc-js';
 import { create } from '@bufbuild/protobuf';
 
-import { buildAuthHeaders } from '../../src/contracts/auth';
 import { containerOptsToStartWorkloadRequest } from '../../src/contracts/workload.grpc';
 import {
   RUNNER_SERVICE_INSPECT_WORKLOAD_PATH,
@@ -51,17 +50,11 @@ export type GrpcTestClient = {
 
 export function createGrpcTestClient(options: {
   client: RunnerServiceGrpcClientInstance;
-  secret: string;
 }): GrpcTestClient {
-  const { client, secret } = options;
+  const { client } = options;
 
   const metadataFor = (path: string): Metadata => {
-    const headers = buildAuthHeaders({ method: 'POST', path, body: '', secret });
-    const metadata = new Metadata();
-    for (const [key, value] of Object.entries(headers)) {
-      metadata.set(key, value);
-    }
-    return metadata;
+    return new Metadata();
   };
 
   const unary = async <Request, Response>(
