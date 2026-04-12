@@ -17,6 +17,8 @@ import {
   LogsStreamSession,
   Platform,
   PLATFORM_LABEL,
+  ContainerListEntry,
+  VolumeListEntry,
   type ContainerInspectInfo,
 } from './types.ts';
 
@@ -1010,10 +1012,57 @@ export class ContainerService implements DockerClientPort {
     return sorted.map((c) => new ContainerHandle(this, c.Id));
   }
 
+  async listContainersByLabelKey(labelKey: string, options?: { all?: boolean }): Promise<ContainerListEntry[]> {
+    if (!labelKey) return [];
+    this.log(`Listing containers by label key all=${options?.all ?? true} label=${labelKey}`);
+    const list: Docker.ContainerInfo[] = await this.docker.listContainers({
+      all: options?.all ?? true,
+      filters: { label: [labelKey] },
+    });
+    const sorted = [...list].sort((a: Docker.ContainerInfo, b: Docker.ContainerInfo) => {
+      const ac = typeof a.Created === 'number' ? a.Created : 0;
+      const bc = typeof b.Created === 'number' ? b.Created : 0;
+      if (ac !== bc) return ac - bc;
+      const aid = String(a.Id ?? '');
+      const bid = String(b.Id ?? '');
+      return aid.localeCompare(bid);
+    });
+    return sorted
+      .filter((container) => typeof container.Id === 'string' && container.Id.length > 0)
+      .map((container) => ({ id: container.Id, labels: container.Labels ?? {} }));
+  }
+
   async listContainersByVolume(volumeName: string): Promise<string[]> {
     if (!volumeName) return [];
     const result = await this.docker.listContainers({ all: true, filters: { volume: [volumeName] } });
     return Array.isArray(result) ? result.map((it) => it.Id) : [];
+  }
+
+  async listVolumesByLabelKey(labelKey: string): Promise<VolumeListEntry[]> {
+    if (!labelKey) return [];
+    this.log(`Listing volumes by label key label=${labelKey}`);
+    const result = await this.docker.listVolumes({ filters: { label: [labelKey] } });
+    const volumes = Array.isArray(result?.Volumes) ? result.Volumes : [];
+    const sorted = [...volumes].sort((a, b) => String(a.Name ?? '').localeCompare(String(b.Name ?? '')));
+    return sorted
+      .filter((volume) => typeof volume.Name === 'string' && volume.Name.length > 0)
+      .map((volume) => ({ name: volume.Name, labels: volume.Labels ?? {} }));
+  }
+
+  async ensureVolume(volumeName: string, labels?: Record<string, string>): Promise<void> {
+    const name = volumeName.trim();
+    if (!name) return;
+    this.log(`Ensuring volume name=${name}`);
+    try {
+      await this.docker.createVolume({ Name: name, Labels: labels ?? {} });
+    } catch (e: unknown) {
+      const sc = typeof e === 'object' && e && 'statusCode' in e ? (e as { statusCode?: number }).statusCode : undefined;
+      if (sc === 409) {
+        this.debug(`Volume already exists name=${name}`);
+        return;
+      }
+      throw e;
+    }
   }
 
   async removeVolume(volumeName: string, options?: { force?: boolean }): Promise<void> {

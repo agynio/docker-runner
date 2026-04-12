@@ -28,9 +28,15 @@ import {
   InspectWorkloadRequest,
   InspectWorkloadResponse,
   InspectWorkloadResponseSchema,
+  ListWorkloadsRequest,
+  ListWorkloadsResponse,
+  ListWorkloadsResponseSchema,
   ListWorkloadsByVolumeRequest,
   ListWorkloadsByVolumeResponse,
   ListWorkloadsByVolumeResponseSchema,
+  ListVolumesRequest,
+  ListVolumesResponse,
+  ListVolumesResponseSchema,
   LogChunkSchema,
   LogEndSchema,
   PutArchiveRequest,
@@ -66,7 +72,13 @@ import {
   TouchWorkloadResponseSchema,
   SidecarInstance,
   SidecarInstanceSchema,
+  VolumeKind,
+  VolumeListItem,
+  VolumeListItemSchema,
+  VolumeSpec,
   WorkloadContainersSchema,
+  WorkloadListItem,
+  WorkloadListItemSchema,
   WorkloadStatus,
 } from '../../proto/gen/agynio/api/runner/v1/runner_pb.js';
 import { runnerServiceGrpcDefinition } from '../../proto/grpc.js';
@@ -76,7 +88,7 @@ import type { ContainerService, InteractiveExecSession, LogsStreamSession } from
 import type { ContainerHandle } from '../../lib/container.handle.ts';
 import type { RunnerConfig } from '../config.ts';
 import { createDockerEventsParser } from '../dockerEvents.parser.ts';
-import { startWorkloadRequestToContainerOpts } from '../../contracts/workload.grpc.ts';
+import { extractRequestLabels, startWorkloadRequestToContainerOpts } from '../../contracts/workload.grpc.ts';
 
 type ExecStream = ServerDuplexStream<ExecRequest, ExecResponse>;
 
@@ -130,6 +142,8 @@ const CONTAINER_STOP_TIMEOUT_SEC = 10;
 const SIDECAR_ROLE_LABEL = 'hautech.ai/role';
 const SIDECAR_ROLE_VALUE = 'sidecar';
 const PARENT_CONTAINER_LABEL = 'hautech.ai/parent_cid';
+const WORKLOAD_KEY_LABEL = 'workload_key';
+const VOLUME_KEY_LABEL = 'volume_key';
 
 async function findSidecarHandles(containers: ContainerService, workloadId: string): Promise<ContainerHandle[]> {
   try {
@@ -168,6 +182,34 @@ async function removeSidecars(
     } catch {
       // ignore sidecar removal failures
     }
+  }
+}
+
+const resolveVolumeName = (spec: VolumeSpec): string | null => {
+  const persistentName = spec.persistentName?.trim() ?? '';
+  const fallbackName = spec.name?.trim() ?? '';
+  const resolved = persistentName || fallbackName;
+  if (!resolved) return null;
+  if (resolved.includes('/')) return null;
+  return resolved;
+};
+
+async function ensureWorkloadVolumes(
+  containers: ContainerService,
+  request: StartWorkloadRequest,
+  baseLabels: Record<string, string>,
+): Promise<void> {
+  const volumeSpecs = request.volumes ?? [];
+  if (volumeSpecs.length === 0) return;
+  const ensured = new Set<string>();
+  for (const spec of volumeSpecs) {
+    if (!spec || spec.kind !== VolumeKind.NAMED) continue;
+    const volumeName = resolveVolumeName(spec);
+    if (!volumeName || ensured.has(volumeName)) continue;
+    const volumeLabels = { ...baseLabels, ...(spec.labels ?? {}) };
+    if (Object.keys(volumeLabels).length === 0) continue;
+    ensured.add(volumeName);
+    await containers.ensureVolume(volumeName, volumeLabels);
   }
 }
 
@@ -366,6 +408,8 @@ export function createRunnerGrpcServer(opts: RunnerGrpcOptions): Server {
         return callback(toServiceError(status.INVALID_ARGUMENT, 'main_container_required'));
       }
       try {
+        const requestLabels = extractRequestLabels(call.request);
+        await ensureWorkloadVolumes(opts.containers, call.request, requestLabels);
         const containerOpts = startWorkloadRequestToContainerOpts(call.request);
         const sidecarOpts = Array.isArray(containerOpts.sidecars) ? containerOpts.sidecars : [];
         const stopAndRemove = async (containerId: string) => {
@@ -562,6 +606,29 @@ export function createRunnerGrpcServer(opts: RunnerGrpcOptions): Server {
         callback(toDockerServiceError(error, status.NOT_FOUND));
       }
     },
+    listWorkloads: async (
+      call: ServerUnaryCall<ListWorkloadsRequest, ListWorkloadsResponse>,
+      callback: (error: ServiceError | null, value?: ListWorkloadsResponse) => void,
+    ) => {
+      try {
+        const containers = await opts.containers.listContainersByLabelKey(WORKLOAD_KEY_LABEL, { all: true });
+        const workloads: WorkloadListItem[] = [];
+        for (const container of containers) {
+          if (container.labels[SIDECAR_ROLE_LABEL] === SIDECAR_ROLE_VALUE) continue;
+          const workloadKey = container.labels[WORKLOAD_KEY_LABEL];
+          if (!workloadKey) continue;
+          workloads.push(
+            create(WorkloadListItemSchema, {
+              instanceId: container.id,
+              workloadKey,
+            }),
+          );
+        }
+        callback(null, create(ListWorkloadsResponseSchema, { workloads }));
+      } catch (error) {
+        callback(toDockerServiceError(error, status.UNKNOWN));
+      }
+    },
     findWorkloadsByLabels: async (
       call: ServerUnaryCall<FindWorkloadsByLabelsRequest, FindWorkloadsByLabelsResponse>,
       callback: (error: ServiceError | null, value?: FindWorkloadsByLabelsResponse) => void,
@@ -593,6 +660,28 @@ export function createRunnerGrpcServer(opts: RunnerGrpcOptions): Server {
       try {
         const ids = await opts.containers.listContainersByVolume(volumeName);
         callback(null, create(ListWorkloadsByVolumeResponseSchema, { targetIds: ids }));
+      } catch (error) {
+        callback(toDockerServiceError(error, status.UNKNOWN));
+      }
+    },
+    listVolumes: async (
+      call: ServerUnaryCall<ListVolumesRequest, ListVolumesResponse>,
+      callback: (error: ServiceError | null, value?: ListVolumesResponse) => void,
+    ) => {
+      try {
+        const volumes = await opts.containers.listVolumesByLabelKey(VOLUME_KEY_LABEL);
+        const items: VolumeListItem[] = [];
+        for (const volume of volumes) {
+          const volumeKey = volume.labels[VOLUME_KEY_LABEL];
+          if (!volumeKey) continue;
+          items.push(
+            create(VolumeListItemSchema, {
+              instanceId: volume.name,
+              volumeKey,
+            }),
+          );
+        }
+        callback(null, create(ListVolumesResponseSchema, { volumes: items }));
       } catch (error) {
         callback(toDockerServiceError(error, status.UNKNOWN));
       }

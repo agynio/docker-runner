@@ -55,4 +55,16 @@ describe('workload gRPC mapping', () => {
 
     expect(rebuilt.binds).toEqual(['data:/data:ro,z']);
   });
+
+  it('applies label.* additionalProperties to labels', () => {
+    const request = containerOptsToStartWorkloadRequest({ image: 'alpine:3' });
+    request.additionalProperties = {
+      'label.workload_key': 'workload-1',
+      'label.team': 'core',
+    };
+
+    const rebuilt = startWorkloadRequestToContainerOpts(request);
+
+    expect(rebuilt.labels).toEqual({ workload_key: 'workload-1', team: 'core' });
+  });
 });
