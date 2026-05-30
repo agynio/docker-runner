@@ -13,8 +13,12 @@ import {
   GetWorkloadLabelsResponseSchema,
   InspectWorkloadRequestSchema,
   InspectWorkloadResponseSchema,
+  ListWorkloadsRequestSchema,
+  ListWorkloadsResponseSchema,
   ListWorkloadsByVolumeRequestSchema,
   ListWorkloadsByVolumeResponseSchema,
+  ListVolumesRequestSchema,
+  ListVolumesResponseSchema,
   PutArchiveRequestSchema,
   PutArchiveResponseSchema,
   ReadyRequestSchema,
@@ -87,7 +91,9 @@ export const RUNNER_SERVICE_REMOVE_WORKLOAD_PATH = '/agynio.api.runner.v1.Runner
 export const RUNNER_SERVICE_INSPECT_WORKLOAD_PATH = '/agynio.api.runner.v1.RunnerService/InspectWorkload';
 export const RUNNER_SERVICE_GET_WORKLOAD_LABELS_PATH = '/agynio.api.runner.v1.RunnerService/GetWorkloadLabels';
 export const RUNNER_SERVICE_FIND_WORKLOADS_BY_LABELS_PATH = '/agynio.api.runner.v1.RunnerService/FindWorkloadsByLabels';
+export const RUNNER_SERVICE_LIST_WORKLOADS_PATH = '/agynio.api.runner.v1.RunnerService/ListWorkloads';
 export const RUNNER_SERVICE_LIST_WORKLOADS_BY_VOLUME_PATH = '/agynio.api.runner.v1.RunnerService/ListWorkloadsByVolume';
+export const RUNNER_SERVICE_LIST_VOLUMES_PATH = '/agynio.api.runner.v1.RunnerService/ListVolumes';
 export const RUNNER_SERVICE_REMOVE_VOLUME_PATH = '/agynio.api.runner.v1.RunnerService/RemoveVolume';
 export const RUNNER_SERVICE_TOUCH_WORKLOAD_PATH = '/agynio.api.runner.v1.RunnerService/TouchWorkload';
 export const RUNNER_SERVICE_PUT_ARCHIVE_PATH = '/agynio.api.runner.v1.RunnerService/PutArchive';
@@ -132,10 +138,20 @@ export const runnerServiceGrpcDefinition: ServiceDefinition = {
     FindWorkloadsByLabelsRequestSchema,
     FindWorkloadsByLabelsResponseSchema,
   ),
+  listWorkloads: unaryDefinition(
+    RUNNER_SERVICE_LIST_WORKLOADS_PATH,
+    ListWorkloadsRequestSchema,
+    ListWorkloadsResponseSchema,
+  ),
   listWorkloadsByVolume: unaryDefinition(
     RUNNER_SERVICE_LIST_WORKLOADS_BY_VOLUME_PATH,
     ListWorkloadsByVolumeRequestSchema,
     ListWorkloadsByVolumeResponseSchema,
+  ),
+  listVolumes: unaryDefinition(
+    RUNNER_SERVICE_LIST_VOLUMES_PATH,
+    ListVolumesRequestSchema,
+    ListVolumesResponseSchema,
   ),
   removeVolume: unaryDefinition(
     RUNNER_SERVICE_REMOVE_VOLUME_PATH,

@@ -23,6 +23,7 @@ const PROP_CREATE_EXTRAS_JSON = 'create_extras_json';
 const PROP_BIND_OPTIONS = 'bind_options';
 const PROP_TTL_SECONDS = 'ttl_seconds';
 const PROP_PLATFORM = 'platform';
+const LABEL_PREFIX = 'label.';
 
 const BOOL_TRUE = new Set(['1', 'true', 'yes', 'on']);
 
@@ -103,6 +104,44 @@ const composeBindString = (
 const ensureVolumeSpecName = (prefix: string, index: number): string => `${prefix}-${index}`;
 
 const cloneAdditionalProperties = (input?: Record<string, string>): Record<string, string> => ({ ...(input ?? {}) });
+
+const sanitizeLabels = (input?: Record<string, string>): Record<string, string> => {
+  if (!input) return {};
+  const labels: Record<string, string> = {};
+  for (const [key, value] of Object.entries(input)) {
+    const trimmed = key.trim();
+    if (!trimmed) continue;
+    labels[trimmed] = value;
+  }
+  return labels;
+};
+
+const extractLabelProperties = (input?: Record<string, string>): Record<string, string> => {
+  if (!input) return {};
+  const labels: Record<string, string> = {};
+  for (const [key, value] of Object.entries(input)) {
+    if (!key.startsWith(LABEL_PREFIX)) continue;
+    const labelKey = key.slice(LABEL_PREFIX.length).trim();
+    if (!labelKey) continue;
+    labels[labelKey] = value;
+  }
+  return labels;
+};
+
+const mergeLabels = (...sources: Array<Record<string, string> | undefined>): Record<string, string> => {
+  const labels: Record<string, string> = {};
+  for (const source of sources) {
+    if (!source) continue;
+    for (const [key, value] of Object.entries(source)) {
+      if (!key) continue;
+      labels[key] = value;
+    }
+  }
+  return labels;
+};
+
+export const extractRequestLabels = (request: StartWorkloadRequest): Record<string, string> =>
+  mergeLabels(extractLabelProperties(request.additionalProperties), sanitizeLabels(request.labels));
 
 export const workloadContainerPropKeys = {
   autoRemove: PROP_AUTO_REMOVE,
@@ -264,6 +303,9 @@ export const startWorkloadRequestToContainerOpts = (request: StartWorkloadReques
 
   const opts: ContainerOpts = {};
 
+  const requestLabels = extractRequestLabels(request);
+  if (Object.keys(requestLabels).length > 0) opts.labels = requestLabels;
+
   if (isNonEmptyString(main.image)) opts.image = main.image;
   if (isNonEmptyString(main.name)) opts.name = main.name;
   if (Array.isArray(main.cmd) && main.cmd.length > 0) opts.cmd = [...main.cmd];
@@ -291,7 +333,10 @@ export const startWorkloadRequestToContainerOpts = (request: StartWorkloadReques
   if (isNonEmptyString(containerProps[PROP_LABELS_JSON])) {
     try {
       const parsed = JSON.parse(containerProps[PROP_LABELS_JSON]) as Record<string, string>;
-      if (parsed && typeof parsed === 'object') opts.labels = parsed;
+      if (parsed && typeof parsed === 'object') {
+        const mergedLabels = mergeLabels(requestLabels, parsed);
+        if (Object.keys(mergedLabels).length > 0) opts.labels = mergedLabels;
+      }
     } catch {
       // ignore malformed labels payloads
     }

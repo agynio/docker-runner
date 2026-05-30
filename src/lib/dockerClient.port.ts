@@ -9,6 +9,8 @@ import type {
   LogsStreamOptions,
   LogsStreamSession,
   Platform,
+  ContainerListEntry,
+  VolumeListEntry,
 } from './types.ts';
 
 export type DockerEventFilters = Record<string, Array<string | number>>;
@@ -33,6 +35,9 @@ export interface DockerClientPort {
   getContainerLabels(containerId: string): Promise<Record<string, string> | undefined>;
   getContainerNetworks(containerId: string): Promise<string[]>;
   findContainersByLabels(labels: Record<string, string>, options?: { all?: boolean }): Promise<ContainerHandle[]>;
+  listContainersByLabelKey(labelKey: string, options?: { all?: boolean }): Promise<ContainerListEntry[]>;
+  listVolumesByLabelKey(labelKey: string): Promise<VolumeListEntry[]>;
+  ensureVolume(volumeName: string, labels?: Record<string, string>): Promise<void>;
   listContainersByVolume(volumeName: string): Promise<string[]>;
   removeVolume(volumeName: string, options?: { force?: boolean }): Promise<void>;
   findContainerByLabels(labels: Record<string, string>, options?: { all?: boolean }): Promise<ContainerHandle | undefined>;

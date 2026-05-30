@@ -115,3 +115,13 @@ export type ContainerInspectInfo = {
   State?: ContainerInspectState;
   NetworkSettings?: ContainerInspectNetworkSettings;
 };
+
+export type ContainerListEntry = {
+  id: string;
+  labels: Record<string, string>;
+};
+
+export type VolumeListEntry = {
+  name: string;
+  labels: Record<string, string>;
+};
